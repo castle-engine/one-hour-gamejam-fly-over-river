@@ -111,6 +111,11 @@ procedure WindowRender(Container: TUIContainer);
 
 var
   I: Integer;
+const
+  { how soon to disappear the rocket, to make Rockets[] slots available,
+    and to avoid killing enemies far away.
+    Equal to Window.Width and Map.Width now, although does not have to. }
+  RocketDisappearDistance = 1024;
 begin
   // TODO: couple of times render map
   for I := 0 to 3 do // TODO: unoptimal, only 2 draws should be needed
@@ -124,8 +129,7 @@ begin
   for I := 0 to High(Rockets) do
   begin
     if Rockets[I].Alive and
-       (Rockets[I].Position[1] > (Map.Height * 3)) then
-        // TODO: better condition to end rocket fly
+       (Rockets[I].Position[1] > Player.Position[1] + RocketDisappearDistance) then
       Rockets[I].Alive := false;
 
     DrawEntity(Rockets[I]);
