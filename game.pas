@@ -22,6 +22,8 @@ type
     Position: TVector2Single;
     Alive: boolean;
     Image: TGLImage;
+    DieTime: TFloatTime;
+    DieAnimation: TGLVideo2D;
     function Collides(const E: TEntity): boolean;
     function Width: Integer;
     function Height: Integer;
@@ -55,7 +57,8 @@ var
   Enemies: array [0..50] of TEntity;
   Rockets: array [0..40] of TEntity;
   EnemiesDestroyed: Cardinal;
-  SurvivedTime: TFloatTime;
+  CurrentTime: TFloatTime;
+  Explosion: TGLVideo2D;
 
 procedure Restart;
 var
@@ -69,6 +72,7 @@ begin
   begin
     Enemies[I].Alive := true;
     Enemies[I].Image := Enemy;
+    Enemies[I].DieAnimation := Explosion;
     Enemies[I].Position := Vector2Single(
       Map.Width div 4 + Random * Map.Width / 2,
       Random * Map.Height * 3
@@ -90,8 +94,10 @@ begin
   PlayerImage := TGLImage.Create(ApplicationData('SpaceShipSmall.png'));
   Enemy := TGLImage.Create(ApplicationData('ship6c.png'));
   Rocket := TGLImage.Create(ApplicationData('cohete_off.png'));
+  //Explosion := TGLVideo2D.Create(ApplicationData('explosion_320x240/explosion_1@counter(4).png'), false);
+  Explosion := TGLVideo2D.Create(ApplicationData('explosion_320x240_frameskip2/explosion_1@counter(4).png'), false);
   EnemiesDestroyed := 0;
-  SurvivedTime := 0;
+  CurrentTime := 0;
 
   Restart;
 end;
@@ -110,6 +116,13 @@ procedure WindowRender(Container: TUIContainer);
       E.Image.Draw(
         Round(E.Position[0] - E.Width div 2),
         Round(E.Position[1] - E.Height div 2 + ShiftY)
+      ) else
+    if (E.DieAnimation <> nil) and
+       (E.DieTime <> 0) and
+       (CurrentTime < E.DieTime + E.DieAnimation.Duration) then
+      E.DieAnimation.GLImageFromTime(CurrentTime - E.DieTime).Draw(
+        Round(E.Position[0] - E.DieAnimation.Width div 2),
+        Round(E.Position[1] - E.DieAnimation.Height div 2 + ShiftY)
       );
   end;
 
@@ -140,7 +153,7 @@ begin
     DrawEntity(Rockets[I]);
   end;
 
-  S := Format('Survided: %fs', [SurvivedTime]);
+  S := Format('Survided: %fs', [CurrentTime]);
   UIFont.Print(10, Container.Height - 10 - UIFont.RowHeight,
     LightGreen, S);
   S := Format('Destroyed: %d', [EnemiesDestroyed]);
@@ -184,7 +197,7 @@ var
   I, J: Integer;
 begin
   SecondsPassed := Window.Fps.UpdateSecondsPassed;
-  SurvivedTime += SecondsPassed;
+  CurrentTime += SecondsPassed;
 
   { move player }
   Player.Position += Vector2Single(0, SecondsPassed * MoveForwardSpeed);
@@ -210,6 +223,7 @@ begin
         if Enemies[J].Collides(Rockets[I]) then
         begin
           Enemies[J].Alive := false;
+          Enemies[J].DieTime := CurrentTime;
           Inc(EnemiesDestroyed);
         end;
 
@@ -277,4 +291,5 @@ finalization
   FreeAndNil(PlayerImage);
   FreeAndNil(Enemy);
   FreeAndNil(Rocket);
+  FreeAndNil(Explosion);
 end.

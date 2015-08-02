@@ -15,3 +15,10 @@ Author:
 ToxSickProductions.com
 License(s):
 CC0
+
+explosion_320x240 from
+http://opengameart.org/content/wgstudio-explosion-animation
+Author:
+Retimer
+License(s):
+CC-BY 3.0
