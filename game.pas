@@ -84,6 +84,9 @@ begin
     Rockets[I].Alive := false;
     Rockets[I].Image := Rocket;
   end;
+
+  EnemiesDestroyed := 0;
+  CurrentTime := 0;
 end;
 
 { One-time initialization of resources. }
@@ -96,8 +99,6 @@ begin
   Rocket := TGLImage.Create(ApplicationData('cohete_off.png'));
   //Explosion := TGLVideo2D.Create(ApplicationData('explosion_320x240/explosion_1@counter(4).png'), false);
   Explosion := TGLVideo2D.Create(ApplicationData('explosion_320x240_frameskip2/explosion_1@counter(4).png'), false);
-  EnemiesDestroyed := 0;
-  CurrentTime := 0;
 
   Restart;
 end;
