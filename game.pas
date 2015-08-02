@@ -8,7 +8,7 @@ interface
 uses CastleWindow;
 
 var
-  Window: TCastleWindow;
+  Window: TCastleWindowCustom;
 
 implementation
 
@@ -241,7 +241,7 @@ initialization
   Application.OnInitialize := @ApplicationInitialize;
 
   { create Window and initialize Window callbacks }
-  Window := TCastleWindow.Create(Application);
+  Window := TCastleWindowCustom.Create(Application);
   Application.MainWindow := Window;
   { for now, just hardcode the size to match map width, looks best }
   Window.Width := 1024;
