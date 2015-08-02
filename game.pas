@@ -13,8 +13,8 @@ var
 implementation
 
 uses SysUtils,
-  CastleFilesUtils, CastleKeysMouse,
-  CastleImages, CastleGLImages, CastleVectors, CastleMessages;
+  CastleFilesUtils, CastleKeysMouse, CastleTimeUtils, CastleControls,
+  CastleImages, CastleGLImages, CastleVectors, CastleMessages, CastleColors;
 
 type
   { Entity in a world, like a player or enemy or rocket. }
@@ -54,6 +54,8 @@ var
   Player: TEntity;
   Enemies: array [0..50] of TEntity;
   Rockets: array [0..40] of TEntity;
+  EnemiesDestroyed: Cardinal;
+  SurvivedTime: TFloatTime;
 
 procedure Restart;
 var
@@ -88,6 +90,8 @@ begin
   PlayerImage := TGLImage.Create(ApplicationData('SpaceShipSmall.png'));
   Enemy := TGLImage.Create(ApplicationData('ship6c.png'));
   Rocket := TGLImage.Create(ApplicationData('cohete_off.png'));
+  EnemiesDestroyed := 0;
+  SurvivedTime := 0;
 
   Restart;
 end;
@@ -111,6 +115,7 @@ procedure WindowRender(Container: TUIContainer);
 
 var
   I: Integer;
+  S: string;
 const
   { how soon to disappear the rocket, to make Rockets[] slots available,
     and to avoid killing enemies far away.
@@ -134,6 +139,15 @@ begin
 
     DrawEntity(Rockets[I]);
   end;
+
+  S := Format('Survided: %fs', [SurvivedTime]);
+  UIFont.Print(10, Container.Height - 10 - UIFont.RowHeight,
+    LightGreen, S);
+  S := Format('Destroyed: %d', [EnemiesDestroyed]);
+  UIFont.Print(
+    Container.Width - 10 - UIFont.TextWidth(S),
+    Container.Height - 10 - UIFont.RowHeight,
+    Yellow, S);
 end;
 
 { Window.OnUpdate callback. }
@@ -166,14 +180,18 @@ const
   MoveForwardSpeed = 500;
   RocketSpeed = 2000;
 var
+  SecondsPassed: Single;
   I, J: Integer;
 begin
+  SecondsPassed := Window.Fps.UpdateSecondsPassed;
+  SurvivedTime += SecondsPassed;
+
   { move player }
-  Player.Position += Vector2Single(0, Window.Fps.UpdateSecondsPassed * MoveForwardSpeed);
+  Player.Position += Vector2Single(0, SecondsPassed * MoveForwardSpeed);
   if Window.Pressed[K_Right] then
-    Player.Position += Vector2Single(Window.Fps.UpdateSecondsPassed * MoveSidewaysSpeed, 0);
+    Player.Position += Vector2Single(SecondsPassed * MoveSidewaysSpeed, 0);
   if Window.Pressed[K_Left]  then
-    Player.Position -= Vector2Single(Window.Fps.UpdateSecondsPassed * MoveSidewaysSpeed, 0);
+    Player.Position -= Vector2Single(SecondsPassed * MoveSidewaysSpeed, 0);
 
   { collisions enemies vs player }
   for I := 0 to High(Enemies) do
@@ -190,9 +208,12 @@ begin
     begin
       for J := 0 to High(Enemies) do
         if Enemies[J].Collides(Rockets[I]) then
+        begin
           Enemies[J].Alive := false;
+          Inc(EnemiesDestroyed);
+        end;
 
-      Rockets[I].Position += Vector2Single(0, Window.Fps.UpdateSecondsPassed * RocketSpeed);
+      Rockets[I].Position += Vector2Single(0, SecondsPassed * RocketSpeed);
     end;
 
   { collisions player vs wall }
