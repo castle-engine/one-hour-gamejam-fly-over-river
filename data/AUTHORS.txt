@@ -16,7 +16,7 @@ ToxSickProductions.com
 License(s):
 CC0
 
-explosion_320x240 from
+explosion_320x240_frameskip2 based on
 http://opengameart.org/content/wgstudio-explosion-animation
 Author:
 Retimer
