@@ -225,7 +225,9 @@ begin
         begin
           Enemies[J].Alive := false;
           Enemies[J].DieTime := CurrentTime;
+          Rockets[I].Alive := false;
           Inc(EnemiesDestroyed);
+          Break;
         end;
 
       Rockets[I].Position += Vector2Single(0, SecondsPassed * RocketSpeed);
