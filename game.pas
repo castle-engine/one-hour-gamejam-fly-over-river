@@ -8,20 +8,21 @@ interface
 uses CastleWindow;
 
 var
-  Window: TCastleWindowCustom;
+  Window: TCastleWindow;
 
 implementation
 
 uses SysUtils,
   CastleFilesUtils, CastleKeysMouse, CastleTimeUtils, CastleControls,
-  CastleImages, CastleGLImages, CastleVectors, CastleMessages, CastleColors;
+  CastleImages, CastleGLImages, CastleVectors, CastleMessages, CastleColors,
+  CastleApplicationProperties, CastleUiControls;
 
 type
   { Entity in a world, like a player or enemy or rocket. }
   TEntity = object
-    Position: TVector2Single;
+    Position: TVector2;
     Alive: boolean;
-    Image: TGLImage;
+    Image: TDrawableImage;
     DieTime: TFloatTime;
     DieAnimation: TGLVideo2D;
     function Collides(const E: TEntity): boolean;
@@ -51,7 +52,7 @@ begin
 end;
 
 var
-  Map, PlayerImage, Enemy, Rocket: TGLImage;
+  Map, PlayerImage, Enemy, Rocket: TDrawableImage;
   MapMask: TGrayscaleImage;
   Player: TEntity;
   Enemies: array [0..50] of TEntity;
@@ -66,14 +67,14 @@ var
 begin
   Player.Alive := true;
   Player.Image := PlayerImage;
-  Player.Position := Vector2Single(Map.Width / 2 - 100, Player.Height);
+  Player.Position := Vector2(Map.Width / 2 - 100, Player.Height);
 
   for I := 0 to High(Enemies) do
   begin
     Enemies[I].Alive := true;
     Enemies[I].Image := Enemy;
     Enemies[I].DieAnimation := Explosion;
-    Enemies[I].Position := Vector2Single(
+    Enemies[I].Position := Vector2(
       Map.Width div 4 + Random * Map.Width / 2,
       Random * Map.Height * 3
     );
@@ -92,19 +93,26 @@ end;
 { One-time initialization of resources. }
 procedure ApplicationInitialize;
 begin
-  Map := TGLImage.Create(ApplicationData('map.png'));
-  MapMask := LoadImage(ApplicationData('map_mask.png'), [TGrayscaleImage]) as TGrayscaleImage;
-  PlayerImage := TGLImage.Create(ApplicationData('SpaceShipSmall.png'));
-  Enemy := TGLImage.Create(ApplicationData('ship6c.png'));
-  Rocket := TGLImage.Create(ApplicationData('cohete_off.png'));
-  //Explosion := TGLVideo2D.Create(ApplicationData('explosion_320x240/explosion_1@counter(4).png'), false);
-  Explosion := TGLVideo2D.Create(ApplicationData('explosion_320x240_frameskip2/explosion_1@counter(4).png'), false);
+  Map := TDrawableImage.Create('castle-data:/map.png');
+  MapMask := LoadImage('castle-data:/map_mask.png', [TGrayscaleImage]) as TGrayscaleImage;
+  PlayerImage := TDrawableImage.Create('castle-data:/SpaceShipSmall.png');
+  Enemy := TDrawableImage.Create('castle-data:/ship6c.png');
+  Rocket := TDrawableImage.Create('castle-data:/cohete_off.png');
+  //Explosion := TGLVideo2D.Create('castle-data:/explosion_320x240/explosion_1@counter(4).png', false);
+  Explosion := TGLVideo2D.Create('castle-data:/explosion_320x240_frameskip2/explosion_1@counter(4).png', false);
 
   Restart;
 end;
 
-{ Window.OnRender callback. }
-procedure WindowRender(Container: TUIContainer);
+type
+  { View to contain whole UI and to handle events, like updates. }
+  TMyView = class(TCastleView)
+    function Press(const Event: TInputPressRelease): Boolean; override;
+    procedure Update(const SecondsPassed: Single; var HandleInput: Boolean); override;
+    procedure Render; override;
+  end;
+
+procedure TMyView.Render;
 
   function ShiftY: Single;
   begin
@@ -121,7 +129,7 @@ procedure WindowRender(Container: TUIContainer);
     if (E.DieAnimation <> nil) and
        (E.DieTime <> 0) and
        (CurrentTime < E.DieTime + E.DieAnimation.Duration) then
-      E.DieAnimation.GLImageFromTime(CurrentTime - E.DieTime).Draw(
+      E.DieAnimation.DrawableImageFromTime(CurrentTime - E.DieTime).Draw(
         Round(E.Position[0] - E.DieAnimation.Width div 2),
         Round(E.Position[1] - E.DieAnimation.Height div 2 + ShiftY)
       );
@@ -136,6 +144,8 @@ const
     Equal to Window.Width and Map.Width now, although does not have to. }
   RocketDisappearDistance = 1024;
 begin
+  inherited;
+
   // TODO: couple of times render map
   for I := 0 to 3 do // TODO: unoptimal, only 2 draws should be needed
     Map.Draw(0, Round(ShiftY + Map.Height * I));
@@ -155,17 +165,16 @@ begin
   end;
 
   S := Format('Survided: %fs', [CurrentTime]);
-  UIFont.Print(10, Container.Height - 10 - UIFont.RowHeight,
+  UIFont.Print(10, Container.PixelsHeight - 10 - UIFont.Height,
     LightGreen, S);
   S := Format('Destroyed: %d', [EnemiesDestroyed]);
   UIFont.Print(
-    Container.Width - 10 - UIFont.TextWidth(S),
-    Container.Height - 10 - UIFont.RowHeight,
+    Container.PixelsWidth - 10 - UIFont.TextWidth(S),
+    Container.PixelsHeight - 10 - UIFont.Height,
     Yellow, S);
 end;
 
-{ Window.OnUpdate callback. }
-procedure WindowUpdate(Container: TUIContainer);
+procedure TMyView.Update(const SecondsPassed: Single; var HandleInput: Boolean);
 
   function PlayerCrashedWithWall(const X, Y: Single): boolean;
   const
@@ -194,18 +203,18 @@ const
   MoveForwardSpeed = 500;
   RocketSpeed = 2000;
 var
-  SecondsPassed: Single;
   I, J: Integer;
 begin
-  SecondsPassed := Window.Fps.UpdateSecondsPassed;
+  inherited;
+
   CurrentTime += SecondsPassed;
 
   { move player }
-  Player.Position += Vector2Single(0, SecondsPassed * MoveForwardSpeed);
-  if Window.Pressed[K_Right] then
-    Player.Position += Vector2Single(SecondsPassed * MoveSidewaysSpeed, 0);
-  if Window.Pressed[K_Left]  then
-    Player.Position -= Vector2Single(SecondsPassed * MoveSidewaysSpeed, 0);
+  Player.Position += Vector2(0, SecondsPassed * MoveForwardSpeed);
+  if Container.Pressed[keyArrowRight] then
+    Player.Position += Vector2(SecondsPassed * MoveSidewaysSpeed, 0);
+  if Container.Pressed[keyArrowLeft]  then
+    Player.Position -= Vector2(SecondsPassed * MoveSidewaysSpeed, 0);
 
   { collisions enemies vs player }
   for I := 0 to High(Enemies) do
@@ -230,7 +239,7 @@ begin
           Break;
         end;
 
-      Rockets[I].Position += Vector2Single(0, SecondsPassed * RocketSpeed);
+      Rockets[I].Position += Vector2(0, SecondsPassed * RocketSpeed);
     end;
 
   { collisions player vs wall }
@@ -239,16 +248,16 @@ begin
   if PlayerCrashedWithWall(-1,  1) then Exit;
   if PlayerCrashedWithWall( 1,  1) then Exit;
   if PlayerCrashedWithWall( 1, -1) then Exit;
-
-  { we constantly change Player.Position, to just redraw constantly }
-  Window.Invalidate;
 end;
 
-procedure WindowPress(Container: TUIContainer; const Event: TInputPressRelease);
+function TMyView.Press(const Event: TInputPressRelease): Boolean;
 var
   I: Integer;
 begin
-  if Event.IsKey(K_Space) then
+  Result := inherited;
+  if Result then Exit;
+
+  if Event.IsKey(keySpace) then
   begin
     for I := 0 to High(Rockets) do
       { fire first available rocket }
@@ -258,36 +267,38 @@ begin
         Rockets[I].Position := Player.Position;
         Break;
       end;
+
+    Exit(true);
   end;
 
-  if Event.IsKey(K_F5) then
+  if Event.IsKey(keyF5) then
+  begin
     Window.SaveScreen(FileNameAutoInc(ApplicationName + '_screen_%d.png'));
+    Exit(true);
+  end;
 end;
 
-function MyGetApplicationName: string;
-begin
-  Result := 'fly_over_river';
-end;
-
+var
+  MyView: TMyView;
 initialization
-  { This sets SysUtils.ApplicationName.
-    It is useful to make sure it is correct (as early as possible)
-    as our log routines use it. }
-  OnGetApplicationName := @MyGetApplicationName;
+  ApplicationProperties.ApplicationName := 'fly_over_river';
 
   { initialize Application callbacks }
   Application.OnInitialize := @ApplicationInitialize;
 
   { create Window and initialize Window callbacks }
-  Window := TCastleWindowCustom.Create(Application);
+  Window := TCastleWindow.Create(Application);
   Application.MainWindow := Window;
-  { for now, just hardcode the size to match map width, looks best }
+  { TODO: just hardcode the size to match map width, looks best.
+    This is 1-hour gamejam game! }
   Window.Width := 1024;
   Window.Height := 1024;
   Window.ResizeAllowed := raNotAllowed;
-  Window.OnRender := @WindowRender;
-  Window.OnUpdate := @WindowUpdate;
-  Window.OnPress := @WindowPress;
+
+  MyView := TMyView.Create(Application);
+  Window.Container.View := MyView;
+
+  Application.MainWindow := Window;
 finalization
   FreeAndNil(Map);
   FreeAndNil(MapMask);
