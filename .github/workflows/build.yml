@@ -79,7 +79,11 @@ jobs:
   # This means to build for macOS and (maybe in the future) iOS.
   build-macos:
     name: Build Using macOS
-    runs-on: macos-latest
+    # macOS note:
+    # We are not using macos-latest, to avoid
+    # linking errors about "_LSOpenCFURLRef".
+    # Using macos-13 as the latest macOS that is known to work flawlessly with CGE GHA.    
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v5
       - name: Install FPC+Lazarus
